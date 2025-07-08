@@ -28,5 +28,8 @@ Route::middleware('api.token.exists')->group(function () {
         ->name('password.confirm');
 });
 
-Route::post('logout', App\Livewire\Actions\Logout::class)
-    ->name('logout');
+Route::post('logout', function () {
+    session()->forget('token');
+    cache()->forget('user');
+    return redirect()->route('login');
+})->name('logout');
