@@ -16,7 +16,7 @@ Route::middleware('guest')->group(function () {
     Route::get('reset-password/{token}', ResetPassword::class)->name('password.reset');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware('api.token.exists')->group(function () {
     Route::get('verify-email', VerifyEmail::class)
         ->name('verification.notice');
 
