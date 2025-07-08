@@ -4,8 +4,7 @@ namespace App\Livewire\Settings;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Http;
 use Livewire\Component;
 
 class Profile extends Component
@@ -14,13 +13,33 @@ class Profile extends Component
 
     public string $email = '';
 
+    public ?string $phone = null;
+
+    public ?string $company = null;
+
+    public ?string $job_title = null;
+
+    public ?string $country = null;
+
+    public ?string $city = null;
+
+    public ?array $socials = [];
+
+    public ?string $error = null;
+
     /**
      * Mount the component.
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
+        $this->name = cache('user')['name'];
+        $this->email = cache('user')['email'];
+        $this->phone = cache('user')['phone'];
+        $this->company = cache('user')['company'];
+        $this->job_title = cache('user')['job_title'];
+        $this->country = cache('user')['country'];
+        $this->city = cache('user')['city'];
+        $this->socials = cache('user')['socials'] ?? [];
     }
 
     /**
@@ -28,47 +47,43 @@ class Profile extends Component
      */
     public function updateProfileInformation(): void
     {
-        $user = Auth::user();
+        $this->error = null;
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($user->id),
-            ],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'company' => ['nullable', 'string', 'max:255'],
+            'job_title' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'socials' => ['nullable', 'array'],
+            'socials.*.title' => ['required', 'string', 'max:255'],
+            'socials.*.url' => ['required', 'string', 'max:255'],
         ]);
 
-        $user->fill($validated);
+        $update = Http::asJson()
+            ->acceptJson()
+            ->withToken(session('token'))
+            ->put(config('services.api.url') . '/profile', $validated);
 
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
+        if ($update->successful()) {
+            cache()->put('user', $update->json());
+
+            $this->dispatch('profile-updated', name: $this->name);
+        } else {
+            $this->error = $update->json()['message'];
         }
-
-        $user->save();
-
-        $this->dispatch('profile-updated', name: $user->name);
     }
 
-    /**
-     * Send an email verification notification to the current user.
-     */
-    public function resendVerificationNotification(): void
+    public function addSocial(): void
     {
-        $user = Auth::user();
+        $this->socials[] = ['title' => '', 'url' => ''];
+    }
 
-        if ($user->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false));
-
-            return;
-        }
-
-        $user->sendEmailVerificationNotification();
-
-        Session::flash('status', 'verification-link-sent');
+    public function removeSocial(int $index): void
+    {
+        unset($this->socials[$index]);
+        $this->socials = array_values($this->socials);
     }
 }
