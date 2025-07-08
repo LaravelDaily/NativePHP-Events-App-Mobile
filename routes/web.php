@@ -16,6 +16,7 @@ Route::middleware(['api.token.exists'])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');
 
     Route::get('events/show/{event}', Events\Show::class)->name('events.show');
+    Route::get('events/{filter?}/{page?}', Events\Index::class)->name('events.index');
 
     Route::get('settings/profile', Profile::class)->name('settings.profile');
     Route::get('settings/password', Password::class)->name('settings.password');
